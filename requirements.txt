@@ -1,0 +1,17 @@
+<<<<<<< HEAD
+dlib==19.17.0
+numpy==1.22.0
+pandas==1.3.4
+opencv-python==4.5.4.58
+pyserial==3.5
+=======
+flask
+deepface
+faiss-cpu
+opencv-python
+numpy
+Pillow
+scipy
+scikit-learn
+tf-keras
+>>>>>>> 6dcab3f13385d181d17318e60890c2961500da32

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ERP – Student Profile</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+    header { width: 100%; background: #1e293b; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+    header h1 { font-size: 1.4rem; color: #38bdf8; }
+    header a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; }
+    .container { width: 100%; max-width: 640px; padding: 40px 16px; }
+
+    .not-found { text-align: center; padding: 60px 0; color: #64748b; }
+    .not-found h2 { font-size: 1.5rem; margin-bottom: 12px; }
+    .not-found a { color: #38bdf8; }
+
+    .profile-card { background: #1e293b; border-radius: 16px; overflow: hidden; border: 1px solid #334155; }
+    .profile-header { background: linear-gradient(135deg, #1e40af, #0e7490); padding: 32px; display: flex; align-items: center; gap: 24px; }
+    .avatar { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #fff; background: #334155; }
+    .avatar-placeholder { width: 100px; height: 100px; border-radius: 50%; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 3px solid #fff; }
+    .profile-header-info h2 { font-size: 1.5rem; color: #fff; }
+    .profile-header-info p { color: #bae6fd; margin-top: 4px; font-size: 0.95rem; }
+    .badge { display: inline-block; background: rgba(255,255,255,0.15); color: #fff; padding: 3px 10px; border-radius: 20px; font-size: 0.8rem; margin-top: 8px; }
+
+    .profile-body { padding: 28px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .info-item label { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+    .info-item p { font-size: 1rem; color: #e2e8f0; margin-top: 4px; }
+
+    .section-title { font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin: 28px 0 16px; border-top: 1px solid #334155; padding-top: 20px; }
+
+    .attendance-bar { background: #0f172a; border-radius: 8px; overflow: hidden; height: 10px; margin-top: 6px; }
+    .attendance-fill { height: 100%; background: #22c55e; border-radius: 8px; width: 85%; }
+
+    .quick-links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .quick-links a { background: #334155; color: #e2e8f0; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.88rem; }
+    .quick-links a:hover { background: #475569; }
+
+    .back-btn { display: inline-block; margin-top: 24px; color: #38bdf8; text-decoration: none; font-size: 0.9rem; }
+    .back-btn:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ERP Portal</h1>
+    <a href="/">← Back to Scanner</a>
+  </header>
+
+  <div class="container">
+    {% if student %}
+    <div class="profile-card">
+      <div class="profile-header">
+        {% if student.photo %}
+          <img class="avatar" src="{{ student.photo }}" alt="Student Photo"/>
+        {% else %}
+          <div class="avatar-placeholder">👤</div>
+        {% endif %}
+        <div class="profile-header-info">
+          <h2>{{ student.name or 'Unknown' }}</h2>
+          <p>{{ student.roll_number }}</p>
+          {% if student.branch %}<span class="badge">{{ student.branch }}</span>{% endif %}
+          {% if student.year %}<span class="badge">{{ student.year }}</span>{% endif %}
+        </div>
+      </div>
+
+      <div class="profile-body">
+        <div class="info-grid">
+          <div class="info-item">
+            <label>Roll Number</label>
+            <p>{{ student.roll_number }}</p>
+          </div>
+          <div class="info-item">
+            <label>Full Name</label>
+            <p>{{ student.name or '—' }}</p>
+          </div>
+          <div class="info-item">
+            <label>Branch</label>
+            <p>{{ student.branch or '—' }}</p>
+          </div>
+          <div class="info-item">
+            <label>Year</label>
+            <p>{{ student.year or '—' }}</p>
+          </div>
+        </div>
+
+        <p class="section-title">Attendance Overview</p>
+        <div class="info-item">
+          <label>Overall Attendance</label>
+          <p>85%</p>
+          <div class="attendance-bar"><div class="attendance-fill"></div></div>
+        </div>
+
+        <p class="section-title">Quick Links</p>
+        <div class="quick-links">
+          <a href="#">Timetable</a>
+          <a href="#">Grades</a>
+          <a href="#">Fee Status</a>
+          <a href="#">Notices</a>
+          <a href="#">Library</a>
+        </div>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="not-found">
+      <h2>Student Not Found</h2>
+      <p>No ERP record found for roll number <strong>{{ roll }}</strong>.</p>
+      <br/>
+      <a href="/add_face">Register this student →</a>
+    </div>
+    {% endif %}
+
+    <a class="back-btn" href="/">← Return to Face Scanner</a>
+  </div>
+</body>
+</html>

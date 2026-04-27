@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ERP Face Recognition</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+    header { width: 100%; background: #1e293b; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+    header h1 { font-size: 1.4rem; color: #38bdf8; }
+    header a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; background: #334155; padding: 8px 16px; border-radius: 6px; }
+    header a:hover { background: #475569; }
+    .container { width: 100%; max-width: 800px; padding: 32px 16px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+    .video-wrapper { position: relative; width: 100%; max-width: 640px; border-radius: 12px; overflow: hidden; border: 2px solid #334155; }
+    video { width: 100%; display: block; }
+    canvas { display: none; }
+    .status-bar { width: 100%; max-width: 640px; background: #1e293b; border-radius: 8px; padding: 16px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+    .status-bar p { color: #94a3b8; font-size: 0.95rem; }
+    .status-bar.detected { border: 1px solid #22c55e; }
+    .status-bar.unknown { border: 1px solid #f59e0b; }
+    .status-bar.error { border: 1px solid #ef4444; }
+    .result-card { width: 100%; max-width: 640px; background: #1e293b; border-radius: 12px; padding: 24px; display: none; border: 1px solid #22c55e; }
+    .result-card h2 { color: #22c55e; margin-bottom: 8px; }
+    .result-card p { color: #94a3b8; margin: 4px 0; }
+    .result-card a { display: inline-block; margin-top: 16px; background: #38bdf8; color: #0f172a; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; }
+    .result-card a:hover { background: #7dd3fc; }
+    .controls { display: flex; gap: 12px; }
+    button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
+    #startBtn { background: #38bdf8; color: #0f172a; }
+    #startBtn:hover { background: #7dd3fc; }
+    #stopBtn { background: #475569; color: #e2e8f0; display: none; }
+    #stopBtn:hover { background: #64748b; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ERP Face Recognition</h1>
+    <a href="/add_face">+ Add New Face</a>
+  </header>
+
+  <div class="container">
+    <div class="video-wrapper">
+      <video id="video" autoplay playsinline muted></video>
+    </div>
+    <canvas id="canvas"></canvas>
+
+    <div class="controls">
+      <button id="startBtn" onclick="startRecognition()">Start Recognition</button>
+      <button id="stopBtn" onclick="stopRecognition()">Stop</button>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+      <p id="statusText">Click "Start Recognition" to begin face detection.</p>
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <h2 id="resultName"></h2>
+      <p id="resultRoll"></p>
+      <p id="resultConf"></p>
+      <a id="erpLink" href="#">Open ERP Profile</a>
+    </div>
+  </div>
+
+  <script>
+    let stream = null;
+    let intervalId = null;
+    let lastRoll = null;
+
+    async function startRecognition() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        document.getElementById('video').srcObject = stream;
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'inline-block';
+        setStatus('Scanning for faces...', '');
+        intervalId = setInterval(captureAndRecognize, 1500);
+      } catch (e) {
+        setStatus('Camera access denied: ' + e.message, 'error');
+      }
+    }
+
+    function stopRecognition() {
+      clearInterval(intervalId);
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      stream = null;
+      document.getElementById('startBtn').style.display = 'inline-block';
+      document.getElementById('stopBtn').style.display = 'none';
+      setStatus('Recognition stopped.', '');
+      document.getElementById('resultCard').style.display = 'none';
+      lastRoll = null;
+    }
+
+    async function captureAndRecognize() {
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+      try {
+        const res = await fetch('/api/recognize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: dataUrl })
+        });
+        const data = await res.json();
+
+        if (!data.face_detected) {
+          setStatus('No face detected in frame.', '');
+          document.getElementById('resultCard').style.display = 'none';
+          lastRoll = null;
+          return;
+        }
+
+        if (data.unknown) {
+          setStatus(`Face detected but not recognized. (confidence: ${data.confidence})`, 'unknown');
+          document.getElementById('resultCard').style.display = 'none';
+          lastRoll = null;
+          return;
+        }
+
+        // Known face
+        if (data.roll_number !== lastRoll) {
+          lastRoll = data.roll_number;
+          setStatus(`Recognized: ${data.name}`, 'detected');
+          document.getElementById('resultName').textContent = data.name;
+          document.getElementById('resultRoll').textContent = `Roll No: ${data.roll_number}`;
+          document.getElementById('resultConf').textContent = `Confidence: ${(data.confidence * 100).toFixed(1)}%`;
+          document.getElementById('erpLink').href = `/erp/${data.roll_number}`;
+          document.getElementById('resultCard').style.display = 'block';
+        }
+      } catch (e) {
+        setStatus('Recognition error: ' + e.message, 'error');
+      }
+    }
+
+    function setStatus(msg, type) {
+      const bar = document.getElementById('statusBar');
+      bar.className = 'status-bar' + (type ? ' ' + type : '');
+      document.getElementById('statusText').textContent = msg;
+    }
+  </script>
+</body>
+</html>

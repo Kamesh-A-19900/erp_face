@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Add New Face – ERP</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+    header { width: 100%; background: #1e293b; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+    header h1 { font-size: 1.4rem; color: #38bdf8; }
+    header a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; }
+    .container { width: 100%; max-width: 520px; padding: 40px 16px; }
+    h2 { font-size: 1.3rem; margin-bottom: 24px; color: #f1f5f9; }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px; }
+    input[type="text"], input[type="file"], select {
+      width: 100%; padding: 10px 14px; background: #1e293b; border: 1px solid #334155;
+      border-radius: 6px; color: #e2e8f0; font-size: 0.95rem;
+    }
+    input:focus, select:focus { outline: none; border-color: #38bdf8; }
+    .preview-wrap { margin-top: 12px; }
+    #preview { max-width: 100%; border-radius: 8px; display: none; border: 1px solid #334155; }
+    .webcam-section { margin-top: 8px; }
+    video#camPreview { width: 100%; border-radius: 8px; display: none; border: 1px solid #334155; }
+    .btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+    button { padding: 9px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-cam { background: #334155; color: #e2e8f0; }
+    .btn-snap { background: #38bdf8; color: #0f172a; display: none; }
+    .btn-submit { width: 100%; padding: 12px; background: #22c55e; color: #0f172a; font-size: 1rem; border-radius: 8px; margin-top: 8px; }
+    .btn-submit:hover { background: #4ade80; }
+    .btn-submit:disabled { background: #475569; cursor: not-allowed; }
+    #msg { margin-top: 16px; padding: 12px; border-radius: 6px; display: none; font-size: 0.9rem; }
+    #msg.success { background: #14532d; color: #86efac; }
+    #msg.error { background: #450a0a; color: #fca5a5; }
+    #msg.training { background: #1e3a5f; color: #93c5fd; }
+    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #93c5fd;
+               border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;
+               margin-right: 6px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    canvas { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ERP Face Recognition</h1>
+    <a href="/">← Back to Scanner</a>
+  </header>
+
+  <div class="container">
+    <h2>Register New Student Face</h2>
+
+    <form id="addForm" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>Roll Number *</label>
+        <input type="text" name="roll_number" id="roll_number" placeholder="e.g. 2021CS001" required/>
+      </div>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" name="name" placeholder="Student full name"/>
+      </div>
+      <div class="form-group">
+        <label>Branch</label>
+        <input type="text" name="branch" placeholder="e.g. Computer Science"/>
+      </div>
+      <div class="form-group">
+        <label>Year</label>
+        <select name="year">
+          <option value="">Select year</option>
+          <option>1st Year</option>
+          <option>2nd Year</option>
+          <option>3rd Year</option>
+          <option>4th Year</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Face Photo *</label>
+        <input type="file" name="image" id="fileInput" accept="image/*" onchange="previewFile(event)"/>
+        <div class="preview-wrap">
+          <img id="preview" alt="Preview"/>
+        </div>
+
+        <div class="webcam-section">
+          <div class="btn-row">
+            <button type="button" class="btn-cam" onclick="startCam()">Use Webcam</button>
+            <button type="button" class="btn-snap" id="snapBtn" onclick="snapPhoto()">Capture Photo</button>
+          </div>
+          <video id="camPreview" autoplay playsinline></video>
+          <canvas id="snapCanvas"></canvas>
+        </div>
+      </div>
+
+      <input type="hidden" id="capturedImage" name="captured_image"/>
+
+      <button type="submit" class="btn-submit" id="submitBtn">Register Face</button>
+    </form>
+
+    <div id="msg"></div>
+  </div>
+
+  <script>
+    let camStream = null;
+    let capturedBlob = null;
+
+    function previewFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        document.getElementById('preview').src = ev.target.result;
+        document.getElementById('preview').style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+      capturedBlob = null;
+    }
+
+    async function startCam() {
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const vid = document.getElementById('camPreview');
+        vid.srcObject = camStream;
+        vid.style.display = 'block';
+        document.getElementById('snapBtn').style.display = 'inline-block';
+      } catch (e) {
+        showMsg('Camera error: ' + e.message, 'error');
+      }
+    }
+
+    function snapPhoto() {
+      const vid = document.getElementById('camPreview');
+      const canvas = document.getElementById('snapCanvas');
+      canvas.width = vid.videoWidth;
+      canvas.height = vid.videoHeight;
+      canvas.getContext('2d').drawImage(vid, 0, 0);
+      canvas.toBlob(blob => {
+        capturedBlob = blob;
+        const url = URL.createObjectURL(blob);
+        document.getElementById('preview').src = url;
+        document.getElementById('preview').style.display = 'block';
+        // Stop cam
+        camStream.getTracks().forEach(t => t.stop());
+        vid.style.display = 'none';
+        document.getElementById('snapBtn').style.display = 'none';
+      }, 'image/jpeg', 0.9);
+    }
+
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Registering...';
+
+      const formData = new FormData(e.target);
+
+      // If webcam capture, replace file
+      if (capturedBlob) {
+        formData.delete('image');
+        formData.append('image', capturedBlob, 'webcam.jpg');
+      }
+
+      // Validate image present
+      const imgFile = formData.get('image');
+      if (!imgFile || imgFile.size === 0) {
+        showMsg('Please provide a face photo (upload or webcam).', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Register Face';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/add_face', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          showMsg('<span class="spinner"></span>Face registered. Computing embeddings in background...', 'training');
+          pollStatus();
+        } else {
+          showMsg(data.error || 'Registration failed.', 'error');
+        }
+      } catch (err) {
+        showMsg('Network error: ' + err.message, 'error');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Register Face';
+    });
+
+    function showMsg(text, type) {
+      const el = document.getElementById('msg');
+      el.innerHTML = text;
+      el.className = type;
+      el.style.display = 'block';
+    }
+
+    function pollStatus() {
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/status');
+          const data = await res.json();
+          if (!data.busy) {
+            clearInterval(interval);
+            showMsg('✓ ' + data.last, 'success');
+            document.getElementById('addForm').reset();
+            document.getElementById('preview').style.display = 'none';
+            capturedBlob = null;
+          }
+        } catch (_) { clearInterval(interval); }
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
